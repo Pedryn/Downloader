@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DOWNLOADER</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+        }
+
+        .container {
+            width: 100%;
+            text-align: center;
+        }
+
+        .titulo {
+            background-color: #c4302b;
+            padding: 10px;
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .titulo img {
+            width: 40px;
+            margin-left: 10px;
+        }
+
+        input {
+            margin-top: 20px;
+            padding: 10px;
+            width: 80%;
+            max-width: 400px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+
+        button {
+            margin-top: 20px;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            background-color: #c4302b;
+            color: white;
+            cursor: pointer;
+            font-size: 16px;
+            margin-right: 10px;
+        }
+
+        button:hover {
+            background-color: #a62820;
+        }
+
+        #progress-container {
+            margin: 20px auto;
+            width: 80%;
+            max-width: 400px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            background-color: #f3f3f3;
+            height: 25px;
+            display: none;
+        }
+
+        #progress-bar {
+            width: 0;
+            height: 100%;
+            background-color: #c4302b;
+            border-radius: 5px;
+            text-align: center;
+            color: black;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="titulo">
+            <h1>DOWNLOADER</h1>
+            <img src="https://cdn-icons-png.flaticon.com/512/1077/1077046.png" alt="YouTube logo">
+        </div>
+        <p>Coloque o link abaixo de um vídeo do YouTube e selecione a opção desejada</p>
+        <div>
+            <input id="video-link" placeholder="https://www.youtube.com/exemplo">
+        </div>
+        <div>
+            <button onclick="downloadMp3()">MP3</button>
+            <button onclick="downloadMp4()">MP4</button>
+        </div>
+
+        <div id="progress-container">
+            <div id="progress-bar">0%</div>
+        </div>
+    </div>
+
+    <script>
+        function downloadMp3() {
+            const link = document.getElementById('video-link').value;
+            fetch('/mp3', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ link })
+            }).then(response => {
+                if (response.ok) {
+                    alert('Download de MP3 iniciado!');
+                    startProgress();
+                } else {
+                    alert('Erro no download de MP3.');
+                }
+            });
+        }
+        
+        function downloadMp4() {
+            const link = document.getElementById('video-link').value;
+            fetch('/mp4', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ link })
+            }).then(response => {
+                if (response.ok) {
+                    alert('Download de MP4 iniciado!');
+                    startProgress(); // Inicia a barra de progresso para MP4 também
+                } else {
+                    alert('Erro no download de MP4.');
+                }
+            });
+        }
+
+        function startProgress() {
+            const progressContainer = document.getElementById('progress-container');
+            const progressBar = document.getElementById('progress-bar');
+            progressContainer.style.display = 'block';
+
+            // Função para checar o progresso do download
+            function checkProgress() {
+                fetch('/progress')
+                    .then(response => response.json())
+                    .then(data => {
+                        progressBar.style.width = data.percent;
+                        progressBar.textContent = data.percent;
+
+                        if (data.status === 'downloading') {
+                            setTimeout(checkProgress, 1000); // Checa o progresso a cada segundo
+                        } else if (data.status === 'done') {
+                            progressBar.style.width = '100%';
+                            progressBar.textContent = '100%';
+                            alert('Download concluído!');
+                        } else if (data.status.startsWith('error')) {
+                            alert('Erro: ' + data.status);
+                        }
+                    });
+            }
+
+            checkProgress();
+        }
+    </script>
+</body>
+</html>
