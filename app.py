@@ -1,6 +1,8 @@
 from flask import Flask, render_template, request, jsonify
 import yt_dlp
 import threading
+import instaloader
+import os
 
 app = Flask(__name__)
 
@@ -51,11 +53,40 @@ def download_video(link):
     except Exception as e:
         progress['status'] = f'error: {e}'
 
+# Função que faz o download de vídeos do Instagram
+def download_instagram(link):
+    global progress
+    loader = instaloader.Instaloader()
+    loader.save_metadata = False
+    loader.download_video_thumbnails = False
+
+    progress['status'] = 'downloading'
+    try:
+        if "instagram.com" in link:
+            shortcode = link.split("/")[-2]
+            post = instaloader.Post.from_shortcode(loader.context, shortcode)
+
+            if post.is_video:
+                loader.download_post(post, target="downloads")
+                progress['status'] = 'done'
+            else:
+                progress['status'] = 'error: O link fornecido não é de um vídeo.'
+        else:
+            loader.download_profile(link, profile_pic=False, fast_update=True)
+            progress['status'] = 'done'
+
+        # Remoção de arquivos indesejados
+        for root, dirs, files in os.walk("downloads"):
+            for file in files:
+                if file.endswith(".json") or file.endswith(".txt"):
+                    os.remove(os.path.join(root, file))
+    except Exception as e:
+        progress['status'] = f'error: {e}'
+
 # Função chamada pelo yt-dlp para atualizar o progresso
 def progress_hook(d):
     global progress
     if d['status'] == 'downloading':
-        # Apenas mantenha a porcentagem, removendo sequências de escape
         progress['percent'] = d['_percent_str'].replace('\x1b[0;94m', '').replace('\x1b[0m', '').strip()
     if d['status'] == 'finished':
         progress['status'] = 'done'
@@ -66,10 +97,7 @@ def mp3():
     data = request.get_json()
     link = data.get('link')
 
-    # Reseta o progresso
     progress = {'status': 'downloading', 'percent': '0%'}
-    
-    # Inicia o download em uma thread separada para não bloquear a resposta
     threading.Thread(target=download_audio, args=(link,)).start()
 
     return jsonify({"status": "Download iniciado"}), 200
@@ -80,11 +108,19 @@ def mp4():
     data = request.get_json()
     link = data.get('link')
 
-    # Reseta o progresso
     progress = {'status': 'downloading', 'percent': '0%'}
-    
-    # Inicia o download em uma thread separada para não bloquear a resposta
     threading.Thread(target=download_video, args=(link,)).start()
+
+    return jsonify({"status": "Download iniciado"}), 200
+
+@app.route('/instagram', methods=['POST'])
+def instagram():
+    global progress
+    data = request.get_json()
+    link = data.get('link')
+
+    progress = {'status': 'downloading', 'percent': 'N/A'}
+    threading.Thread(target=download_instagram, args=(link,)).start()
 
     return jsonify({"status": "Download iniciado"}), 200
 

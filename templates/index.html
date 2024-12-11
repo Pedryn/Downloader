@@ -81,15 +81,17 @@
     <div class="container">
         <div class="titulo">
             <h1>DOWNLOADER</h1>
-            <img src="https://cdn-icons-png.flaticon.com/512/1077/1077046.png" alt="YouTube logo">
+            <img src="https://cdn-icons-png.flaticon.com/512/1077/1077046.png" alt="Logo">
         </div>
-        <p>Coloque o link abaixo de um vídeo do YouTube e selecione a opção desejada</p>
+        <p>Coloque o link abaixo de um vídeo e selecione a opção desejada</p>
         <div>
-            <input id="video-link" placeholder="https://www.youtube.com/exemplo">
+            <input id="video-link" placeholder="https://www.youtube.com/exemplo ou https://www.instagram.com/exemplo">
         </div>
         <div>
-            <button onclick="downloadMp3()">MP3</button>
-            <button onclick="downloadMp4()">MP4</button>
+            <button onclick="downloadMp3()">YouTube MP3</button>
+            <button onclick="downloadMp4()">YouTube MP4</button>
+            <!--<button onclick="downloadInstaAudio()">Instagram Áudio</button>-->
+            <button onclick="downloadInstaVideo()">Instagram Vídeo</button>
         </div>
 
         <div id="progress-container">
@@ -123,9 +125,25 @@
             }).then(response => {
                 if (response.ok) {
                     alert('Download de MP4 iniciado!');
-                    startProgress(); // Inicia a barra de progresso para MP4 também
+                    startProgress();
                 } else {
                     alert('Erro no download de MP4.');
+                }
+            });
+        }
+
+        function downloadInstaVideo() {
+            const linkOrUser = document.getElementById('video-link').value;
+            fetch('/instagram', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ link_or_user: linkOrUser })
+            }).then(response => {
+                if (response.ok) {
+                    alert('Download do Instagram iniciado!');
+                    startProgress();
+                } else {
+                    alert('Erro no download do Instagram.');
                 }
             });
         }
@@ -135,7 +153,6 @@
             const progressBar = document.getElementById('progress-bar');
             progressContainer.style.display = 'block';
 
-            // Função para checar o progresso do download
             function checkProgress() {
                 fetch('/progress')
                     .then(response => response.json())
@@ -144,7 +161,7 @@
                         progressBar.textContent = data.percent;
 
                         if (data.status === 'downloading') {
-                            setTimeout(checkProgress, 1000); // Checa o progresso a cada segundo
+                            setTimeout(checkProgress, 1000);
                         } else if (data.status === 'done') {
                             progressBar.style.width = '100%';
                             progressBar.textContent = '100%';
