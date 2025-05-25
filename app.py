@@ -3,6 +3,7 @@ import yt_dlp
 import threading
 import instaloader
 import os
+import time
 
 app = Flask(__name__)
 
@@ -53,17 +54,17 @@ def download_video(link):
     except Exception as e:
         progress['status'] = f'error: {e}'
 
-# Função que faz o download de vídeos do Instagram
+# Função que faz o download de vídeos ou perfis do Instagram
 def download_instagram(link):
     global progress
     loader = instaloader.Instaloader()
-    loader.save_metadata = False
-    loader.download_video_thumbnails = False
+    loader.save_metadata = False  # Evita criar arquivos .json
+    loader.download_video_thumbnails = False  # Não baixa miniaturas de vídeos
 
     progress['status'] = 'downloading'
     try:
         if "instagram.com" in link:
-            shortcode = link.split("/")[-2]
+            shortcode = link.split("/")[-2]  # Extrai o shortcode do link
             post = instaloader.Post.from_shortcode(loader.context, shortcode)
 
             if post.is_video:
@@ -108,21 +109,44 @@ def mp4():
     data = request.get_json()
     link = data.get('link')
 
-    progress = {'status': 'downloading', 'percent': '0%'}
-    threading.Thread(target=download_video, args=(link,)).start()
+    if not link:
+        return jsonify({"error": "Nenhum link fornecido."}), 400
 
-    return jsonify({"status": "Download iniciado"}), 200
+    progress = {'status': 'downloading', 'percent': '0%'}
+    threading.Thread(target=download_mp4, args=(link,)).start()
+
+    return jsonify({"status": "Download de MP4 iniciado"}), 200
+
+def download_mp4(link):
+    global progress
+    ydl_opts = {
+        'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/mp4',
+        'outtmpl': 'downloads/%(title)s.%(ext)s',
+        'progress_hooks': [progress_hook],
+    }
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            ydl.download([link])
+        progress['status'] = 'done'
+    except Exception as e:
+        progress['status'] = f'error: {e}'
+
+
 
 @app.route('/instagram', methods=['POST'])
 def instagram():
     global progress
     data = request.get_json()
-    link = data.get('link')
+    link_or_user = data.get('link_or_user')
 
-    progress = {'status': 'downloading', 'percent': 'N/A'}
-    threading.Thread(target=download_instagram, args=(link,)).start()
+    if not link_or_user:
+        return jsonify({"error": "Nenhum link ou usuário fornecido."}), 400
+
+    progress = {'status': 'downloading', 'percent': '0%'}
+    threading.Thread(target=download_instagram, args=(link_or_user,)).start()
 
     return jsonify({"status": "Download iniciado"}), 200
+
 
 @app.route('/progress')
 def get_progress():
